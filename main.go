@@ -11,10 +11,12 @@ import (
 
 var (
     relay = "localhost:2525"
-    sessions = 300
+    sessions = 100
     mail_per_session = 1000
-    total = 1000000
+    total = 100000
     sent = 0
+    username = "detect"
+    password = "123123"
 )
 
 var mt sync.Mutex
@@ -30,7 +32,13 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
     c, err := smtp.Dial(relay)
 
     if err != nil {
-        log.Fatal(err)
+        log.Fatal("dial", err)
+    }
+
+    var auth = smtp.CRAMMD5Auth(username, password)
+
+    if err := c.Auth(auth); err != nil {
+        log.Fatal("auth: ", err)
     }
 
     done := 0
@@ -38,27 +46,27 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
 
         // Set the sender and recipient first
         if err := c.Mail("someone@example.org"); err != nil {
-            log.Fatal(err)
+            log.Fatal("mail from: ", err)
         }
 
         if err := c.Rcpt("someone@example.org"); err != nil {
-            log.Fatal(err)
+            log.Fatal("rcpt: ", err)
         }
 
         // Send the email body.
         wc, err := c.Data()
         if err != nil {
-            log.Fatal(err)
+            log.Fatal("data: ", err)
         }
 
         _, err = wc.Write(b)
         if err != nil {
-            log.Fatal(err)
+            log.Fatal("data write: ", err)
         }
 
         err = wc.Close()
         if err != nil {
-            log.Fatal(err)
+            log.Fatal("close: ", err)
         }
 
         mt.Lock()
@@ -72,12 +80,16 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
 
             err = c.Quit()
             if err != nil {
-                log.Fatal(err)
+                log.Fatal("quit: ", err)
             }
 
             c, err = smtp.Dial(relay)
             if err != nil {
-                log.Fatal(err)
+                log.Fatal("dial: ", err)
+            }
+
+            if err := c.Auth(auth); err != nil {
+                log.Fatal("auth: ", err)
             }
 
             done = 0
@@ -88,7 +100,7 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
     // Send the QUIT command and close the connection.
     err = c.Quit()
     if err != nil {
-        log.Fatal(err)
+        log.Fatal("quit: ", err)
     }
 
 }
