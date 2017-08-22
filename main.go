@@ -7,16 +7,18 @@ import (
     "log"
     "sync"
     "time"
+    "net"
 )
 
 var (
     relay = "localhost:2525"
-    sessions = 100
+    sessions = 200
     mail_per_session = 1000
     total = 100000
     sent = 0
     username = "detect"
     password = "123123"
+    bind = "192.168.0.203"
 )
 
 var mt sync.Mutex
@@ -29,18 +31,28 @@ func stat() {
 }
 
 func worker(b []byte, jobs <-chan int, rslt chan<- int) {
-    c, err := smtp.Dial(relay)
+	var dialer = &net.Dialer{
+		LocalAddr: &net.TCPAddr{IP: net.ParseIP(bind)},
+	}
+									
+    conn, err := dialer.Dial("tcp", relay)
 
     if err != nil {
         log.Fatal("dial", err)
     }
 
+	c, err := smtp.NewClient(conn, relay)
+
+    if err != nil {
+        log.Fatal("client", err)
+    }
+/*
     var auth = smtp.CRAMMD5Auth(username, password)
 
     if err := c.Auth(auth); err != nil {
         log.Fatal("auth: ", err)
     }
-
+*/
     done := 0
     for j := range jobs {
 
@@ -87,11 +99,11 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
             if err != nil {
                 log.Fatal("dial: ", err)
             }
-
+/*
             if err := c.Auth(auth); err != nil {
                 log.Fatal("auth: ", err)
             }
-
+*/
             done = 0
         }
 
