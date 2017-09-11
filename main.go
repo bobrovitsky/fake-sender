@@ -8,6 +8,8 @@ import (
     "sync"
     "time"
     "net"
+    "fmt"
+    "math/rand"
 )
 
 var (
@@ -23,6 +25,8 @@ var (
 
 var mt sync.Mutex
 
+
+
 func stat() {
     for {
 		time.Sleep(time.Second)
@@ -31,6 +35,8 @@ func stat() {
 }
 
 func worker(b []byte, jobs <-chan int, rslt chan<- int) {
+	rand.Seed(time.Now().Unix()) 
+
 	var dialer = &net.Dialer{
 		LocalAddr: &net.TCPAddr{IP: net.ParseIP(bind)},
 	}
@@ -44,15 +50,15 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
 	c, err := smtp.NewClient(conn, relay)
 
     if err != nil {
-        log.Fatal("client", err)
+        log.Fatal("client: ", err)
     }
-/*
+
     var auth = smtp.CRAMMD5Auth(username, password)
 
     if err := c.Auth(auth); err != nil {
         log.Fatal("auth: ", err)
     }
-*/
+
     done := 0
     for j := range jobs {
 
@@ -61,7 +67,12 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
             log.Fatal("mail from: ", err)
         }
 
-        if err := c.Rcpt("someone@example.org"); err != nil {
+		domains := []string{"example.org", "zhopa.ru", "vasya.ru"}
+		
+		num := rand.Intn(1000000)
+
+//        if err := c.Rcpt(fmt.Sprintf("someone@%s", domains[rand.Intn(len(domains))])); err != nil {
+        if err := c.Rcpt(fmt.Sprintf("someone@%d-%s", num, domains[rand.Intn(len(domains))])); err != nil {
             log.Fatal("rcpt: ", err)
         }
 
@@ -99,11 +110,11 @@ func worker(b []byte, jobs <-chan int, rslt chan<- int) {
             if err != nil {
                 log.Fatal("dial: ", err)
             }
-/*
+
             if err := c.Auth(auth); err != nil {
                 log.Fatal("auth: ", err)
             }
-*/
+
             done = 0
         }
 
